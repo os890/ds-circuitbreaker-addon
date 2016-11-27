@@ -33,13 +33,15 @@ public @interface CircuitOpenDelay {
     int delay();
     TimeUnit timeUnit();
 
+    Literal DEFAULT = new Literal();
+
     class Literal extends AnnotationLiteral<CircuitOpenDelay> implements CircuitOpenDelay {
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int delay;
         private final TimeUnit timeUnit;
 
-        public Literal() {
+        private Literal() {
             delay = 3;
             timeUnit = TimeUnit.SECONDS;
         }

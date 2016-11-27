@@ -16,29 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.os890.cdi.addon.circuitbreaker.api;
+package org.os890.cdi.addon.metrics.api;
+
+import org.apache.deltaspike.core.api.config.ConfigResolver;
 
 import javax.enterprise.util.AnnotationLiteral;
 import java.lang.annotation.*;
 
 /**
- * Number of successful executions which are needed that the circuit-breaker transitions from half-open to closed
+ * [optional]
+ * Allows to skip metrics-details for methods which execute faster than the given value.
+ * Furthermore OverloadProtectionInterceptor filters executions faster than 2ms to improve the overall perf.
+ * (to change that see the ds-config-key: OverloadProtection_filterMethodsFasterThanMs)
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
-public @interface SuccessThreshold {
-    int value();
+public @interface FilterMethodsFasterThan {
+    int ms(); //use @OverloadProtection(collectMetrics = false) to skip metrics-recording at all
 
     Literal DEFAULT = new Literal();
 
-    class Literal extends AnnotationLiteral<SuccessThreshold> implements SuccessThreshold {
+    class Literal extends AnnotationLiteral<FilterMethodsFasterThan> implements FilterMethodsFasterThan {
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int value;
 
         private Literal() {
-            value = 3;
+            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(FilterMethodsFasterThan.class.getSimpleName() + "_ms", "100");
+            value = Integer.parseInt(configuredValue);
         }
 
         public Literal(int value) {
@@ -46,7 +52,7 @@ public @interface SuccessThreshold {
         }
 
         @Override
-        public int value() {
+        public int ms() {
             return value;
         }
     }

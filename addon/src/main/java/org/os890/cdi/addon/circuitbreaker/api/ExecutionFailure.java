@@ -33,13 +33,15 @@ public @interface ExecutionFailure {
     int after();
     TimeUnit timeUnit();
 
+    Literal DEFAULT = new Literal();
+
     class Literal extends AnnotationLiteral<ExecutionFailure> implements ExecutionFailure {
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int after;
         private final TimeUnit timeUnit;
 
-        public Literal() {
+        private Literal() {
             after = 1;
             timeUnit = TimeUnit.SECONDS;
         }

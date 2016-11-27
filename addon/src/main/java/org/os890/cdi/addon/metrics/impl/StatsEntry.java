@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.os890.cdi.addon.metrics;
+package org.os890.cdi.addon.metrics.impl;
 
 import org.os890.cdi.addon.circuitbreaker.api.CircuitState;
 
@@ -64,7 +64,7 @@ public class StatsEntry implements Serializable {
         if (numberOfCalls.get() == 0L) {
             return 0L;
         }
-        return new BigDecimal(duration).divide(new BigDecimal(numberOfCalls.get()), 2, BigDecimal.ROUND_HALF_UP).doubleValue();
+        return new BigDecimal(duration).divide(new BigDecimal(numberOfCalls.get()), 10, BigDecimal.ROUND_HALF_UP).doubleValue();
     }
 
     /*

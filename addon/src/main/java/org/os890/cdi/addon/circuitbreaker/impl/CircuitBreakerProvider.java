@@ -28,7 +28,6 @@ import javax.inject.Inject;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class CircuitBreakerProvider {
@@ -68,25 +67,24 @@ public class CircuitBreakerProvider {
 
         FailureThreshold failureThreshold = currentMethod.getAnnotation(FailureThreshold.class);
         if (failureThreshold == null) {
-            failureThreshold = new FailureThreshold.Literal();
+            failureThreshold = FailureThreshold.DEFAULT;
         }
 
         SuccessThreshold successThreshold = currentMethod.getAnnotation(SuccessThreshold.class);
         if (successThreshold == null) {
-            successThreshold = new SuccessThreshold.Literal();
+            successThreshold = SuccessThreshold.DEFAULT;
         }
 
         CircuitOpenDelay circuitOpenDelay = currentMethod.getAnnotation(CircuitOpenDelay.class);
         if (circuitOpenDelay == null) {
-            circuitOpenDelay = new CircuitOpenDelay.Literal();
+            circuitOpenDelay = CircuitOpenDelay.DEFAULT;
         }
 
         ExecutionFailure executionFailure = currentMethod.getAnnotation(ExecutionFailure.class);
         if (executionFailure == null) {
-            executionFailure = new ExecutionFailure.Literal();
+            executionFailure = ExecutionFailure.DEFAULT;
         }
 
-        //TODO read values from config
         circuitBreaker = new CircuitBreaker()
                 .withFailureThreshold(failureThreshold.failures(), failureThreshold.executions())
                 .withSuccessThreshold(successThreshold.value())

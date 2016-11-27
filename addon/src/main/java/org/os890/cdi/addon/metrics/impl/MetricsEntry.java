@@ -16,20 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.os890.cdi.addon.metrics;
+package org.os890.cdi.addon.metrics.impl;
+
+import org.apache.deltaspike.core.api.config.ConfigResolver;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MetricsEntry implements Serializable {
     private Map<Long, StatsEntry> statsEntries;
-    //max 12 hours of data if there is a request for every second
-    private int maxStatsEntries = 12 /*hours*/ * 60 /*min*/ * 60 /*sec*/;
+    private static Integer maxStatsEntries;
 
     public MetricsEntry() {
+        if (maxStatsEntries == null) {
+            //max 12 hours of data if there is a request for every second
+            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(MetricsEntry.class.getSimpleName() + "_maxCount", "" + (12 /*hours*/ * 60 /*min*/ * 60 /*sec*/));
+            maxStatsEntries = Integer.parseInt(configuredValue);
+        }
         statsEntries = new ConcurrentHashMap(maxStatsEntries + 1);
     }
 
@@ -44,6 +51,22 @@ public class MetricsEntry implements Serializable {
 
     public Collection<StatsEntry> getStatsEntries() {
         return new ArrayList<StatsEntry>(statsEntries.values());
+    }
+
+    public Collection<StatsEntry> getStatsEntries(long timeSlotBoarder) {
+        List<StatsEntry> result = new ArrayList<StatsEntry>();
+
+        for (Map.Entry<Long, StatsEntry> entry : statsEntries.entrySet()) {
+            Long timeSlotKey = entry.getKey();
+
+            if (timeSlotKey == null) {
+                continue;
+            }
+            if (timeSlotKey <= timeSlotBoarder) {
+                result.add(entry.getValue());
+            }
+        }
+        return result;
     }
 
     public synchronized void onOpenCircuit() {

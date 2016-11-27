@@ -18,17 +18,25 @@
  */
 package org.os890.cdi.addon.circuitbreaker.api;
 
+import java.lang.reflect.Method;
+
 public class ProtectedCallEvent {
     private final String key;
+    private Method currentMethod;
     private final long duration;
 
-    public ProtectedCallEvent(String key, long duration) {
+    public ProtectedCallEvent(String key, Method currentMethod, long duration) {
         this.key = key;
+        this.currentMethod = currentMethod;
         this.duration = duration;
     }
 
     public String getKey() {
         return key;
+    }
+
+    public Method getCurrentMethod() {
+        return currentMethod;
     }
 
     public long getDuration() {

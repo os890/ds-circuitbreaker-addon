@@ -41,12 +41,12 @@ import java.util.concurrent.Callable;
 public class OverloadProtectionInterceptor implements Serializable {
     private static final long serialVersionUID = 14L;
 
-    private static Integer slowMethodInvocationThreshold;
+    private static Integer filterMethodsFasterThanMs; //additional perf. improvement to avoid metrics-overhead for very fast methods (leads to a ~30% better performance if all methods are faster)
 
     public OverloadProtectionInterceptor() {
-        if (slowMethodInvocationThreshold == null) {
-            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(OverloadProtection.class.getSimpleName() + "_slowMethodInvocationThreshold", "10000");
-            slowMethodInvocationThreshold = Integer.parseInt(configuredValue);
+        if (filterMethodsFasterThanMs == null) {
+            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(OverloadProtection.class.getSimpleName() + "_filterMethodsFasterThanMs", "1");
+            filterMethodsFasterThanMs = Integer.parseInt(configuredValue);
         }
     }
 
@@ -72,11 +72,11 @@ public class OverloadProtectionInterceptor implements Serializable {
                     } finally {
                         long duration = System.currentTimeMillis() - start;
 
-                        if (duration > slowMethodInvocationThreshold) {
+                        if (duration > filterMethodsFasterThanMs) { //don't eval the optional annotation (@FilterMethodsFasterThan) here - to avoid an impact on perf. (~20%)
                             OverloadProtection overloadProtection = currentMethod.getAnnotation(OverloadProtection.class);
 
                             if (overloadProtection != null && overloadProtection.collectMetrics()) {
-                                protectedCallBroadcaster.fire(new ProtectedCallEvent(circuitBreakerDescriptor.getKey(), duration));
+                                protectedCallBroadcaster.fire(new ProtectedCallEvent(circuitBreakerDescriptor.getKey(), currentMethod, duration));
                             }
                         }
                     }

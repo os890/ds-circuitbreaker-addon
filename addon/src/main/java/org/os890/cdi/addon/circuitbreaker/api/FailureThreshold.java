@@ -33,13 +33,15 @@ public @interface FailureThreshold {
     int failures();
     int executions();
 
+    Literal DEFAULT = new Literal();
+
     class Literal extends AnnotationLiteral<FailureThreshold> implements FailureThreshold {
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int failures;
         private final int executions;
 
-        public Literal() {
+        private Literal() {
             failures = 8;
             executions = 10;
         }

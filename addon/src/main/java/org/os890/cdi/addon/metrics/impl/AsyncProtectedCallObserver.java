@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.os890.cdi.addon.metrics;
+package org.os890.cdi.addon.metrics.impl;
 
 import org.os890.cdi.addon.circuitbreaker.api.ProtectedCallEvent;
 
@@ -32,6 +32,6 @@ public class AsyncProtectedCallObserver {
 
     @Asynchronous
     public void onProtectedCall(@Observes ProtectedCallEvent protectedCallEvent) {
-        metricsStorage.record(protectedCallEvent.getKey(), protectedCallEvent.getDuration());
+        metricsStorage.record(protectedCallEvent.getKey(), protectedCallEvent.getCurrentMethod(), protectedCallEvent.getDuration());
     }
 }

@@ -16,12 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.os890.cdi.addon.metrics;
+package org.os890.cdi.addon.metrics.impl;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class AsyncMetricsCollector {
+    private static final AtomicInteger ONGOING_CLEANUP_TASK_COUNT = new AtomicInteger(0);
+
     private final Map<Long, StatsEntry> statsEntriesToCleanup;
     private int maxStatsEntries;
     private final long timeBoarder;
@@ -34,6 +37,12 @@ public class AsyncMetricsCollector {
     }
 
     public void start() {
+        int ongoingTaskCount = ONGOING_CLEANUP_TASK_COUNT.incrementAndGet();
+
+        if (ongoingTaskCount > 3) {
+            return;
+        }
+
         UnmanagedExecutorHelper.execute(new Runnable() {
             @Override
             public void run() {
@@ -45,7 +54,9 @@ public class AsyncMetricsCollector {
                         }
                     }
                 } finally {
-                    if (statsEntriesToCleanup.size() > maxStatsEntries) {
+                    int numberOfScheduledTasks = ONGOING_CLEANUP_TASK_COUNT.decrementAndGet();
+
+                    if (numberOfScheduledTasks == 0 && statsEntriesToCleanup.size() > maxStatsEntries) {
                         statsEntriesToCleanup.clear(); //emergency cleanup - there is a leak - TODO log entry
                     }
                 }

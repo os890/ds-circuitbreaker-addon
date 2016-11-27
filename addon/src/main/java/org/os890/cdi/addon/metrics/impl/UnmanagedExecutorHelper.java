@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.os890.cdi.addon.metrics;
+package org.os890.cdi.addon.metrics.impl;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
