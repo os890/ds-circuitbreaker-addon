@@ -16,19 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.metrics.impl;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Asynchronous cleanup task that removes old {@link StatsEntry} records
+ * from the metrics storage to prevent unbounded memory growth.
+ */
 public class AsyncMetricsCollector {
+
     private static final AtomicInteger ONGOING_CLEANUP_TASK_COUNT = new AtomicInteger(0);
 
     private final Map<Long, StatsEntry> statsEntriesToCleanup;
     private int maxStatsEntries;
     private final long timeBoarder;
 
+    /**
+     * Creates a new collector for the given entries map.
+     *
+     * @param statsEntriesToCleanup the map of time-keyed stats entries to clean up
+     * @param maxStatsEntries       the maximum number of entries to retain
+     */
     public AsyncMetricsCollector(Map<Long, StatsEntry> statsEntriesToCleanup, int maxStatsEntries) {
         this.statsEntriesToCleanup = statsEntriesToCleanup;
         this.maxStatsEntries = maxStatsEntries;
@@ -36,6 +48,10 @@ public class AsyncMetricsCollector {
         timeBoarder = valueOfTheLatestKey - (maxStatsEntries * 2 / 3 /*just keep 2/3 of the data that we don't get cleanups over and over again*/);
     }
 
+    /**
+     * Starts the asynchronous cleanup. At most three concurrent cleanup tasks
+     * are allowed; additional calls are silently skipped.
+     */
     public void start() {
         int ongoingTaskCount = ONGOING_CLEANUP_TASK_COUNT.incrementAndGet();
 
@@ -43,22 +59,19 @@ public class AsyncMetricsCollector {
             return;
         }
 
-        UnmanagedExecutorHelper.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Set<Long> keys = statsEntriesToCleanup.keySet();
-                    for (Long key : keys) {
-                        if (key < timeBoarder) {
-                            statsEntriesToCleanup.remove(key);
-                        }
+        UnmanagedExecutorHelper.execute(() -> {
+            try {
+                Set<Long> keys = statsEntriesToCleanup.keySet();
+                for (Long key : keys) {
+                    if (key < timeBoarder) {
+                        statsEntriesToCleanup.remove(key);
                     }
-                } finally {
-                    int numberOfScheduledTasks = ONGOING_CLEANUP_TASK_COUNT.decrementAndGet();
+                }
+            } finally {
+                int numberOfScheduledTasks = ONGOING_CLEANUP_TASK_COUNT.decrementAndGet();
 
-                    if (numberOfScheduledTasks == 0 && statsEntriesToCleanup.size() > maxStatsEntries) {
-                        statsEntriesToCleanup.clear(); //emergency cleanup - there is a leak - TODO log entry
-                    }
+                if (numberOfScheduledTasks == 0 && statsEntriesToCleanup.size() > maxStatsEntries) {
+                    statsEntriesToCleanup.clear(); //emergency cleanup - there is a leak - TODO log entry
                 }
             }
         });

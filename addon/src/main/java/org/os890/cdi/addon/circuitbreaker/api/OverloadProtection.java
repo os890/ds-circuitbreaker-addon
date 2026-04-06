@@ -16,13 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
-import javax.interceptor.InterceptorBinding;
-import java.lang.annotation.*;
+import jakarta.enterprise.util.Nonbinding;
+import jakarta.interceptor.InterceptorBinding;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Interceptor annotation to protect a method
+ * Interceptor binding annotation that activates circuit-breaker protection
+ * on a method or all methods of a class.
+ *
+ * <p>When applied, the {@link org.os890.cdi.addon.circuitbreaker.impl.OverloadProtectionInterceptor}
+ * wraps the method invocation with a Failsafe {@code CircuitBreaker}.</p>
  */
 @InterceptorBinding
 @Documented
@@ -30,5 +42,12 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface OverloadProtection {
+
+    /**
+     * Whether to collect invocation metrics for this method.
+     *
+     * @return {@code true} to collect metrics, {@code false} to skip
+     */
+    @Nonbinding
     boolean collectMetrics() default true;
 }

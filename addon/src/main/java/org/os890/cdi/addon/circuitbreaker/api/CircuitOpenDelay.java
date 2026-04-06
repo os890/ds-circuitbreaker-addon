@@ -16,26 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
-import javax.enterprise.util.AnnotationLiteral;
-import java.lang.annotation.*;
+import jakarta.enterprise.util.AnnotationLiteral;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.concurrent.TimeUnit;
 
 /**
- * [optional]
- * how long the circuit should be open so that the application can recover
+ * Optional annotation that specifies how long the circuit should remain open
+ * so that the application can recover before allowing further requests.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 public @interface CircuitOpenDelay {
+
+    /**
+     * The delay duration value.
+     *
+     * @return the delay amount
+     */
     int delay();
+
+    /**
+     * The time unit for the delay.
+     *
+     * @return the time unit
+     */
     TimeUnit timeUnit();
 
+    /** Default literal with a 3-second delay. */
     Literal DEFAULT = new Literal();
 
+    /**
+     * Annotation literal for programmatic use of {@link CircuitOpenDelay}.
+     */
     class Literal extends AnnotationLiteral<CircuitOpenDelay> implements CircuitOpenDelay {
+
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int delay;
@@ -46,7 +69,13 @@ public @interface CircuitOpenDelay {
             timeUnit = TimeUnit.SECONDS;
         }
 
-        public Literal(int delay, TimeUnit timeUnit) {
+        /**
+         * Creates a literal with the given delay and time unit.
+         *
+         * @param delay    the delay amount
+         * @param timeUnit the time unit
+         */
+        Literal(int delay, TimeUnit timeUnit) {
             this.delay = delay;
             this.timeUnit = timeUnit;
         }

@@ -16,21 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.impl;
 
-import net.jodah.failsafe.CircuitBreaker;
-import net.jodah.failsafe.function.CheckedRunnable;
-import org.os890.cdi.addon.circuitbreaker.api.*;
+import dev.failsafe.CircuitBreaker;
+import org.os890.cdi.addon.circuitbreaker.api.CircuitEvent;
+import org.os890.cdi.addon.circuitbreaker.api.CircuitOpenDelay;
+import org.os890.cdi.addon.circuitbreaker.api.CircuitState;
+import org.os890.cdi.addon.circuitbreaker.api.FailureThreshold;
+import org.os890.cdi.addon.circuitbreaker.api.SuccessThreshold;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Event;
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.inject.Inject;
+
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Application-scoped provider that creates and caches {@link CircuitBreaker}
+ * instances per protected method.
+ *
+ * <p>Each circuit breaker is configured from annotations on the target method
+ * and fires CDI events on state transitions.</p>
+ */
 @ApplicationScoped
 public class CircuitBreakerProvider {
+
     //individual broadcasters instead of #select to get a better perf.
 
     @Inject
@@ -45,10 +59,16 @@ public class CircuitBreakerProvider {
     @CircuitState(CircuitState.Value.CLOSED)
     private Event<CircuitEvent> circuitClosedBroadcaster;
 
-    private Map<String, CircuitBreaker> circuitBreakerMap = new HashMap<String, CircuitBreaker>();
+    private Map<String, CircuitBreaker<Object>> circuitBreakerMap = new HashMap<>();
 
-    public CircuitBreaker getCircuitBreakerFor(final CircuitBreakerDescriptor circuitBreakerDescriptor) {
-        CircuitBreaker circuitBreaker = circuitBreakerMap.get(circuitBreakerDescriptor.getKey());
+    /**
+     * Returns the circuit breaker for the given descriptor, creating it if necessary.
+     *
+     * @param circuitBreakerDescriptor the descriptor identifying the circuit breaker
+     * @return the circuit breaker instance
+     */
+    public CircuitBreaker<Object> getCircuitBreakerFor(CircuitBreakerDescriptor circuitBreakerDescriptor) {
+        CircuitBreaker<Object> circuitBreaker = circuitBreakerMap.get(circuitBreakerDescriptor.getKey());
 
         if (circuitBreaker == null) {
             circuitBreaker = buildCircuitBreaker(circuitBreakerDescriptor);
@@ -56,8 +76,8 @@ public class CircuitBreakerProvider {
         return circuitBreaker;
     }
 
-    private synchronized CircuitBreaker buildCircuitBreaker(final CircuitBreakerDescriptor circuitBreakerDescriptor) {
-        CircuitBreaker circuitBreaker = circuitBreakerMap.get(circuitBreakerDescriptor.getKey());
+    private synchronized CircuitBreaker<Object> buildCircuitBreaker(CircuitBreakerDescriptor circuitBreakerDescriptor) {
+        CircuitBreaker<Object> circuitBreaker = circuitBreakerMap.get(circuitBreakerDescriptor.getKey());
 
         if (circuitBreaker != null) {
             return circuitBreaker;
@@ -80,37 +100,18 @@ public class CircuitBreakerProvider {
             circuitOpenDelay = CircuitOpenDelay.DEFAULT;
         }
 
-        ExecutionFailure executionFailure = currentMethod.getAnnotation(ExecutionFailure.class);
-        if (executionFailure == null) {
-            executionFailure = ExecutionFailure.DEFAULT;
-        }
+        String key = circuitBreakerDescriptor.getKey();
 
-        circuitBreaker = new CircuitBreaker()
+        circuitBreaker = CircuitBreaker.<Object>builder()
                 .withFailureThreshold(failureThreshold.failures(), failureThreshold.executions())
                 .withSuccessThreshold(successThreshold.value())
-                .withDelay(circuitOpenDelay.delay(), circuitOpenDelay.timeUnit())
-                .withTimeout(executionFailure.after(), executionFailure.timeUnit());
+                .withDelay(Duration.of(circuitOpenDelay.delay(), circuitOpenDelay.timeUnit().toChronoUnit()))
+                .onOpen(e -> broadcastOpenCircuit(key))
+                .onHalfOpen(e -> broadcastHalfOpenCircuit(key))
+                .onClose(e -> broadcastCloseCircuit(key))
+                .build();
 
-        circuitBreaker.onOpen(new CheckedRunnable() {
-            @Override
-            public void run() throws Exception {
-                broadcastOpenCircuit(circuitBreakerDescriptor.getKey());
-            }
-        });
-        circuitBreaker.onHalfOpen(new CheckedRunnable() {
-            @Override
-            public void run() throws Exception {
-                broadcastHalfOpenCircuit(circuitBreakerDescriptor.getKey());
-            }
-        });
-        circuitBreaker.onClose(new CheckedRunnable() {
-            @Override
-            public void run() throws Exception {
-                broadcastCloseCircuit(circuitBreakerDescriptor.getKey());
-            }
-        });
-
-        circuitBreakerMap.put(circuitBreakerDescriptor.getKey(), circuitBreaker);
+        circuitBreakerMap.put(key, circuitBreaker);
 
         return circuitBreaker;
     }

@@ -16,21 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
+/**
+ * Event fired when a circuit breaker changes state.
+ *
+ * <p>Instances carry the method key identifying the protected method and
+ * the new {@link CircuitState.Value} of the circuit.</p>
+ */
 public class CircuitEvent {
+
     private final String methodKey;
     private final CircuitState.Value circuitStateValue;
 
+    /**
+     * Creates a new circuit event.
+     *
+     * @param methodKey         the key identifying the protected method
+     * @param circuitStateValue the new state of the circuit breaker
+     */
     public CircuitEvent(String methodKey, CircuitState.Value circuitStateValue) {
         this.methodKey = methodKey;
         this.circuitStateValue = circuitStateValue;
     }
 
+    /**
+     * Returns the key identifying the protected method.
+     *
+     * @return the method key
+     */
     public String getMethodKey() {
         return methodKey;
     }
 
+    /**
+     * Returns the new state of the circuit breaker.
+     *
+     * @return the circuit state value
+     */
     public CircuitState.Value getCircuitStateValue() {
         return circuitStateValue;
     }

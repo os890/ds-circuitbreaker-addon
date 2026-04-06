@@ -17,32 +17,41 @@
  * under the License.
  */
 
-package org.os890.cdi.addon.metrics.impl;
+package org.os890.cdi.addon.circuitbreaker;
 
-import org.os890.cdi.addon.circuitbreaker.api.ProtectedCallEvent;
-
-import jakarta.ejb.Asynchronous;
-import jakarta.ejb.Stateless;
-import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.os890.cdi.addon.dynamictestbean.EnableTestBeans;
+import org.os890.cdi.addon.metrics.impl.MetricsStorage;
+
+import java.util.Map;
+
 /**
- * Stateless EJB that asynchronously observes {@link ProtectedCallEvent}s
- * and records them in the {@link MetricsStorage}.
+ * Integration test for {@link MetricsStorage} using the
+ * dynamic-cdi-test-bean-addon.
  */
-@Stateless
-public class AsyncProtectedCallObserver {
+@EnableTestBeans
+class MetricsStorageTest {
 
     @Inject
     private MetricsStorage metricsStorage;
 
-    /**
-     * Observes a protected call event and records it asynchronously.
-     *
-     * @param protectedCallEvent the event to record
-     */
-    @Asynchronous
-    public void onProtectedCall(@Observes ProtectedCallEvent protectedCallEvent) {
-        metricsStorage.record(protectedCallEvent.getKey(), protectedCallEvent.getCurrentMethod(), protectedCallEvent.getDuration());
+    @Test
+    void metricsStorageIsInjectable() {
+        Assertions.assertNotNull(metricsStorage);
+    }
+
+    @Test
+    void initialPercentageOfSlowCallsIsZero() {
+        double percentage = metricsStorage.calcPercentageOfSlowCalls();
+        Assertions.assertEquals(0L, percentage);
+    }
+
+    @Test
+    void overallAverageIsEmptyInitially() {
+        Map<String, Long> averages = metricsStorage.calcOverallAverage();
+        Assertions.assertTrue(averages.isEmpty());
     }
 }

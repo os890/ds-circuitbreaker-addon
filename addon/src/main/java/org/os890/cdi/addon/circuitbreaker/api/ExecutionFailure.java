@@ -16,26 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
-import javax.enterprise.util.AnnotationLiteral;
-import java.lang.annotation.*;
+import jakarta.enterprise.util.AnnotationLiteral;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.concurrent.TimeUnit;
 
 /**
- * [optional]
- * Time after which an execution should be marked as failed (without interruption)
+ * Optional annotation that defines the time after which an execution should be
+ * marked as failed (without interruption).
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 public @interface ExecutionFailure {
+
+    /**
+     * The timeout duration value after which the execution is considered failed.
+     *
+     * @return the timeout amount
+     */
     int after();
+
+    /**
+     * The time unit for the timeout.
+     *
+     * @return the time unit
+     */
     TimeUnit timeUnit();
 
+    /** Default literal with a 1-second timeout. */
     Literal DEFAULT = new Literal();
 
+    /**
+     * Annotation literal for programmatic use of {@link ExecutionFailure}.
+     */
     class Literal extends AnnotationLiteral<ExecutionFailure> implements ExecutionFailure {
+
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int after;
@@ -46,7 +69,13 @@ public @interface ExecutionFailure {
             timeUnit = TimeUnit.SECONDS;
         }
 
-        public Literal(int after, TimeUnit timeUnit) {
+        /**
+         * Creates a literal with the given timeout and time unit.
+         *
+         * @param after    the timeout amount
+         * @param timeUnit the time unit
+         */
+        Literal(int after, TimeUnit timeUnit) {
             this.after = after;
             this.timeUnit = timeUnit;
         }

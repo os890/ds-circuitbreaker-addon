@@ -16,16 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.impl;
 
-import javax.enterprise.inject.Vetoed;
+import jakarta.enterprise.inject.Vetoed;
+
 import java.lang.reflect.Constructor;
 
+/**
+ * Utility class for rethrowing checked exceptions without wrapping them
+ * in a {@link RuntimeException}.
+ */
 @Vetoed
 public class ExceptionUtils {
+
     private ExceptionUtils() {
     }
 
+    /**
+     * Throws the given throwable as a runtime exception using an unchecked cast trick.
+     *
+     * @param throwable the throwable to rethrow
+     * @return never returns; declared for caller convenience
+     * @throws RuntimeException always
+     */
     public static RuntimeException throwAsRuntimeException(Throwable throwable) {
         //Attention: helper which allows to use a trick to throw
         // a catched checked exception without a wrapping exception
@@ -33,6 +47,12 @@ public class ExceptionUtils {
         return null; //not needed due to the helper trick, but it's easier for using it
     }
 
+    /**
+     * Creates a new exception of the same type with a custom message and rethrows it.
+     *
+     * @param throwable     the original throwable
+     * @param customMessage the custom message for the new exception
+     */
     public static void changeAndThrowException(Throwable throwable, String customMessage) {
         Throwable newThrowable = createNewException(throwable, customMessage);
         //Attention: helper which allows to use a trick to throw a cached checked exception without a wrapping exception
@@ -56,6 +76,7 @@ public class ExceptionUtils {
 
     @SuppressWarnings({"unchecked"})
     private static class ExceptionHelper<T extends Throwable> {
+
         private void throwException(Throwable exception) throws T {
             try {
                 //exception-type is only checked at compile-time

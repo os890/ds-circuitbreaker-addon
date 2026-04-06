@@ -16,14 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.metrics.impl;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Helper that provides an unmanaged single-thread executor for
+ * asynchronous metrics cleanup tasks.
+ */
 public class UnmanagedExecutorHelper {
+
     private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    /**
+     * Submits a task for asynchronous execution. If the executor has been
+     * shut down, a new one is created.
+     *
+     * @param task the task to execute
+     */
     public static void execute(Runnable task) {
         if (executor.isTerminated() || executor.isShutdown()) {
             executor = Executors.newSingleThreadExecutor();

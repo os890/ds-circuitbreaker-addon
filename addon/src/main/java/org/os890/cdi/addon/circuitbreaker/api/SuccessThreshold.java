@@ -16,23 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
-import javax.enterprise.util.AnnotationLiteral;
-import java.lang.annotation.*;
+import jakarta.enterprise.util.AnnotationLiteral;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Number of successful executions which are needed that the circuit-breaker transitions from half-open to closed
+ * Annotation that defines the number of successful executions needed for
+ * the circuit-breaker to transition from half-open to closed.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 public @interface SuccessThreshold {
+
+    /**
+     * The number of consecutive successes required to close the circuit.
+     *
+     * @return the success count
+     */
     int value();
 
+    /** Default literal requiring 3 successes. */
     Literal DEFAULT = new Literal();
 
+    /**
+     * Annotation literal for programmatic use of {@link SuccessThreshold}.
+     */
     class Literal extends AnnotationLiteral<SuccessThreshold> implements SuccessThreshold {
+
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int value;
@@ -41,7 +59,12 @@ public @interface SuccessThreshold {
             value = 3;
         }
 
-        public Literal(int value) {
+        /**
+         * Creates a literal with the given success count.
+         *
+         * @param value the success count
+         */
+        Literal(int value) {
             this.value = value;
         }
 

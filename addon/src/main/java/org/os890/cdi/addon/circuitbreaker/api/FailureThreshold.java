@@ -16,26 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
-import javax.enterprise.util.AnnotationLiteral;
-import java.lang.annotation.*;
+import jakarta.enterprise.util.AnnotationLiteral;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * [optional]
- * Defines how many failures are ok before the circuit-breaker opens.
- * ({@link #failures()} out of {@link #executions()}
+ * Optional annotation that defines how many failures are acceptable before the
+ * circuit-breaker opens.
+ *
+ * <p>The circuit opens when {@link #failures()} out of the last
+ * {@link #executions()} invocations have failed.</p>
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 public @interface FailureThreshold {
+
+    /**
+     * The number of failures that trigger the circuit to open.
+     *
+     * @return the failure count
+     */
     int failures();
+
+    /**
+     * The rolling window of executions to consider.
+     *
+     * @return the execution window size
+     */
     int executions();
 
+    /** Default literal with 8 failures out of 10 executions. */
     Literal DEFAULT = new Literal();
 
+    /**
+     * Annotation literal for programmatic use of {@link FailureThreshold}.
+     */
     class Literal extends AnnotationLiteral<FailureThreshold> implements FailureThreshold {
+
         private static final long serialVersionUID = 7310730593030223981L;
 
         private final int failures;
@@ -46,7 +71,13 @@ public @interface FailureThreshold {
             executions = 10;
         }
 
-        public Literal(int failures, int executions) {
+        /**
+         * Creates a literal with the given failure and execution counts.
+         *
+         * @param failures   the failure count
+         * @param executions the execution window size
+         */
+        Literal(int failures, int executions) {
             this.failures = failures;
             this.executions = executions;
         }

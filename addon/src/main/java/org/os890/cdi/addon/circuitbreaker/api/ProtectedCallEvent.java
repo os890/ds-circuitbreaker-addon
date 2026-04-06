@@ -16,29 +16,57 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
 import java.lang.reflect.Method;
 
+/**
+ * Event fired after a protected method call completes, carrying the call
+ * duration for metrics collection.
+ */
 public class ProtectedCallEvent {
+
     private final String key;
     private Method currentMethod;
     private final long duration;
 
+    /**
+     * Creates a new protected call event.
+     *
+     * @param key           the key identifying the protected method
+     * @param currentMethod the method that was invoked
+     * @param duration      the call duration in milliseconds
+     */
     public ProtectedCallEvent(String key, Method currentMethod, long duration) {
         this.key = key;
         this.currentMethod = currentMethod;
         this.duration = duration;
     }
 
+    /**
+     * Returns the key identifying the protected method.
+     *
+     * @return the method key
+     */
     public String getKey() {
         return key;
     }
 
+    /**
+     * Returns the method that was invoked.
+     *
+     * @return the current method
+     */
     public Method getCurrentMethod() {
         return currentMethod;
     }
 
+    /**
+     * Returns the call duration in milliseconds.
+     *
+     * @return the duration
+     */
     public long getDuration() {
         return duration;
     }

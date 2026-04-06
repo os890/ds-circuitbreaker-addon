@@ -16,36 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.impl;
 
-import net.jodah.failsafe.CircuitBreaker;
-import net.jodah.failsafe.CircuitBreakerOpenException;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.FailsafeException;
+import dev.failsafe.CircuitBreaker;
+import dev.failsafe.CircuitBreakerOpenException;
+import dev.failsafe.Failsafe;
+import dev.failsafe.FailsafeException;
+import dev.failsafe.Timeout;
 import org.apache.deltaspike.core.api.config.ConfigResolver;
-import org.os890.cdi.addon.circuitbreaker.api.*;
+import org.os890.cdi.addon.circuitbreaker.api.ExecutionFailure;
+import org.os890.cdi.addon.circuitbreaker.api.OverloadProtection;
+import org.os890.cdi.addon.circuitbreaker.api.ProtectedCallEvent;
+import org.os890.cdi.addon.circuitbreaker.api.ServiceOverloadedException;
 
-import javax.annotation.Priority;
-import javax.enterprise.event.Event;
-import javax.inject.Inject;
-import javax.interceptor.AroundInvoke;
-import javax.interceptor.Interceptor;
-import javax.interceptor.InvocationContext;
+import jakarta.annotation.Priority;
+import jakarta.enterprise.event.Event;
+import jakarta.inject.Inject;
+import jakarta.interceptor.AroundInvoke;
+import jakarta.interceptor.Interceptor;
+import jakarta.interceptor.InvocationContext;
+
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.util.concurrent.Callable;
+import java.time.Duration;
 
+/**
+ * CDI interceptor that wraps method invocations with a Failsafe
+ * {@link CircuitBreaker} to protect against service overload.
+ *
+ * <p>When the circuit is open, a {@link ServiceOverloadedException} is thrown.
+ * Metrics are optionally collected and broadcast as CDI events.</p>
+ */
 @Priority(1)
 @Interceptor
 @OverloadProtection
 public class OverloadProtectionInterceptor implements Serializable {
+
     private static final long serialVersionUID = 14L;
 
     private static Integer filterMethodsFasterThanMs; //additional perf. improvement to avoid metrics-overhead for very fast methods (leads to a ~30% better performance if all methods are faster)
 
+    /**
+     * Default constructor that initialises the method-filter threshold from DeltaSpike configuration.
+     */
     public OverloadProtectionInterceptor() {
         if (filterMethodsFasterThanMs == null) {
-            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(OverloadProtection.class.getSimpleName() + "_filterMethodsFasterThanMs", "1");
+            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(
+                    OverloadProtection.class.getSimpleName() + "_filterMethodsFasterThanMs", "1");
             filterMethodsFasterThanMs = Integer.parseInt(configuredValue);
         }
     }
@@ -56,28 +74,42 @@ public class OverloadProtectionInterceptor implements Serializable {
     @Inject
     private Event<ProtectedCallEvent> protectedCallBroadcaster;
 
+    /**
+     * Intercepts the method invocation and applies circuit-breaker protection.
+     *
+     * @param invocationContext the interceptor invocation context
+     * @return the result of the intercepted method
+     * @throws Exception if the method throws or the circuit is open
+     */
     @AroundInvoke
-    public Object execute(final InvocationContext invocationContext) throws Exception {
+    public Object execute(InvocationContext invocationContext) throws Exception {
         try {
-            final Method currentMethod = invocationContext.getMethod();
-            final CircuitBreakerDescriptor circuitBreakerDescriptor = createDescriptor(currentMethod);
-            CircuitBreaker circuitBreaker = circuitBreakerProvider.getCircuitBreakerFor(circuitBreakerDescriptor);
+            Method currentMethod = invocationContext.getMethod();
+            CircuitBreakerDescriptor circuitBreakerDescriptor = createDescriptor(currentMethod);
+            CircuitBreaker<Object> circuitBreaker = circuitBreakerProvider.getCircuitBreakerFor(circuitBreakerDescriptor);
 
-            return Failsafe.with(circuitBreaker).get(new Callable<Object>() {
-                @Override
-                public Object call() throws Exception {
-                    long start = System.currentTimeMillis();
-                    try {
-                        return invocationContext.proceed();
-                    } finally {
-                        long duration = System.currentTimeMillis() - start;
+            ExecutionFailure executionFailure = currentMethod.getAnnotation(ExecutionFailure.class);
+            if (executionFailure == null) {
+                executionFailure = ExecutionFailure.DEFAULT;
+            }
 
-                        if (duration > filterMethodsFasterThanMs) { //don't eval the optional annotation (@FilterMethodsFasterThan) here - to avoid an impact on perf. (~20%)
-                            OverloadProtection overloadProtection = currentMethod.getAnnotation(OverloadProtection.class);
+            Timeout<Object> timeout = Timeout.<Object>builder(
+                    Duration.of(executionFailure.after(), executionFailure.timeUnit().toChronoUnit()))
+                    .build();
 
-                            if (overloadProtection != null && overloadProtection.collectMetrics()) {
-                                protectedCallBroadcaster.fire(new ProtectedCallEvent(circuitBreakerDescriptor.getKey(), currentMethod, duration));
-                            }
+            return Failsafe.with(circuitBreaker, timeout).get(() -> {
+                long start = System.currentTimeMillis();
+                try {
+                    return invocationContext.proceed();
+                } finally {
+                    long duration = System.currentTimeMillis() - start;
+
+                    if (duration > filterMethodsFasterThanMs) { //don't eval the optional annotation (@FilterMethodsFasterThan) here - to avoid an impact on perf. (~20%)
+                        OverloadProtection overloadProtection = currentMethod.getAnnotation(OverloadProtection.class);
+
+                        if (overloadProtection != null && overloadProtection.collectMetrics()) {
+                            protectedCallBroadcaster.fire(
+                                    new ProtectedCallEvent(circuitBreakerDescriptor.getKey(), currentMethod, duration));
                         }
                     }
                 }
@@ -98,12 +130,12 @@ public class OverloadProtectionInterceptor implements Serializable {
         StringBuilder keyBuilder = new StringBuilder(currentMethod.getDeclaringClass() + "#" + currentMethod.getName());
 
         if (currentMethod.getParameterTypes().length > 0) {
-            for (Class paramType : currentMethod.getParameterTypes()) {
+            for (Class<?> paramType : currentMethod.getParameterTypes()) {
                 keyBuilder.append("|").append(paramType.getName());
             }
         }
 
-        final String key = keyBuilder.toString();
+        String key = keyBuilder.toString();
 
         CircuitBreakerDescriptor circuitBreakerDescriptor = new CircuitBreakerDescriptor(key, currentMethod);
         return circuitBreakerDescriptor;

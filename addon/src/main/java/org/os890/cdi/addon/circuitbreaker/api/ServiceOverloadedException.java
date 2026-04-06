@@ -16,9 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.circuitbreaker.api;
 
+/**
+ * Runtime exception thrown when the circuit breaker is open and the service
+ * cannot accept further requests.
+ */
 public class ServiceOverloadedException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new service overloaded exception wrapping the given cause.
+     *
+     * @param cause the underlying cause
+     */
     public ServiceOverloadedException(Throwable cause) {
         super(cause);
     }

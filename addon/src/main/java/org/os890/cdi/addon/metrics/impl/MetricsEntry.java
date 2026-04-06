@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.os890.cdi.addon.metrics.impl;
 
 import org.apache.deltaspike.core.api.config.ConfigResolver;
@@ -27,34 +28,68 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Stores time-bucketed {@link StatsEntry} records for a single protected method,
+ * with one entry per second of wall-clock time.
+ */
 public class MetricsEntry implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private Map<Long, StatsEntry> statsEntries;
     private static Integer maxStatsEntries;
 
+    /**
+     * Creates a new metrics entry, initialising the maximum entry count from
+     * DeltaSpike configuration if not already set.
+     */
     public MetricsEntry() {
         if (maxStatsEntries == null) {
             //max 12 hours of data if there is a request for every second
-            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(MetricsEntry.class.getSimpleName() + "_maxCount", "" + (12 /*hours*/ * 60 /*min*/ * 60 /*sec*/));
+            String configuredValue = ConfigResolver.getProjectStageAwarePropertyValue(
+                    MetricsEntry.class.getSimpleName() + "_maxCount",
+                    "" + (12 /*hours*/ * 60 /*min*/ * 60 /*sec*/));
             maxStatsEntries = Integer.parseInt(configuredValue);
         }
-        statsEntries = new ConcurrentHashMap(maxStatsEntries + 1);
+        statsEntries = new ConcurrentHashMap<>(maxStatsEntries + 1);
     }
 
+    /**
+     * Records a slow call with the given duration.
+     *
+     * @param duration the call duration in milliseconds
+     */
     public void recordSlowCall(long duration) {
         StatsEntry currentEntry = getOrCreateCurrentEntry();
         currentEntry.recordCall(duration);
     }
 
+    /**
+     * Returns the raw map of time-keyed stats entries.
+     *
+     * @return the stats entries per second
+     */
     public Map<Long, StatsEntry> getStatsEntriesPerSecond() {
         return statsEntries;
     }
 
+    /**
+     * Returns all stats entries as a collection.
+     *
+     * @return a snapshot of all stats entries
+     */
     public Collection<StatsEntry> getStatsEntries() {
-        return new ArrayList<StatsEntry>(statsEntries.values());
+        return new ArrayList<>(statsEntries.values());
     }
 
+    /**
+     * Returns stats entries up to the given time-slot boundary.
+     *
+     * @param timeSlotBoarder the upper bound for time-slot keys (inclusive)
+     * @return stats entries within the boundary
+     */
     public Collection<StatsEntry> getStatsEntries(long timeSlotBoarder) {
-        List<StatsEntry> result = new ArrayList<StatsEntry>();
+        List<StatsEntry> result = new ArrayList<>();
 
         for (Map.Entry<Long, StatsEntry> entry : statsEntries.entrySet()) {
             Long timeSlotKey = entry.getKey();
@@ -69,16 +104,25 @@ public class MetricsEntry implements Serializable {
         return result;
     }
 
+    /**
+     * Records an open-circuit event in the current time slot.
+     */
     public synchronized void onOpenCircuit() {
         StatsEntry currentEntry = getOrCreateCurrentEntry();
         currentEntry.onOpenCircuit();
     }
 
+    /**
+     * Records a half-open-circuit event in the current time slot.
+     */
     public synchronized void onHalfOpenCircuit() {
         StatsEntry currentEntry = getOrCreateCurrentEntry();
         currentEntry.onHalfOpenCircuit();
     }
 
+    /**
+     * Records a close-circuit event in the current time slot.
+     */
     public synchronized void onCloseCircuit() {
         StatsEntry currentEntry = getOrCreateCurrentEntry();
         currentEntry.onCloseCircuit();
@@ -109,6 +153,11 @@ public class MetricsEntry implements Serializable {
         return statsEntry;
     }
 
+    /**
+     * Creates a time key based on the current system time in seconds.
+     *
+     * @return the current time in seconds since epoch
+     */
     public static long createCurrentKey() {
         return System.currentTimeMillis() / 1000;
     }
